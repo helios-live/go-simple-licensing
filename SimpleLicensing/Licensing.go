@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/tls"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -66,7 +66,7 @@ func Decrypt(key, text string) string {
 	return string(plaintext)
 }
 
-func CheckLicense(api string, ssl bool, silent bool) {
+func ForceCheckLicense(api string, ssl, silent bool) {
 	if !CheckFileExist("license.dat") {
 		if !silent {
 			fmt.Println("license.dat not found.")
@@ -81,72 +81,75 @@ func CheckLicense(api string, ssl bool, silent bool) {
 		}
 	}
 
-	if ssl {
-		tr := &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	client := &http.Client{}
+	data := url.Values{}
+	data.Set("license", string(li))
+	u, _ := url.ParseRequestURI(api + "check")
+	urlStr := fmt.Sprintf("%v", u)
+	r, _ := http.NewRequest("POST", urlStr, bytes.NewBufferString(data.Encode()))
+	r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := client.Do(r)
+	if err != nil {
+		if !silent {
+			fmt.Println("Unable to connect to license server.")
 		}
-		client := &http.Client{Transport: tr}
-		data := url.Values{}
-		data.Set("license", string(li))
-		u, _ := url.ParseRequestURI(api + "check")
-		urlStr := fmt.Sprintf("%v", u)
-		r, _ := http.NewRequest("POST", urlStr, bytes.NewBufferString(data.Encode()))
-		r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-		resp, err := client.Do(r)
-		if err != nil {
-			if !silent {
-				fmt.Println("Unable to connect to license server.")
-			}
-			os.Exit(0)
-		}
-		defer resp.Body.Close()
-		resp_body, _ := ioutil.ReadAll(resp.Body)
-		if resp.StatusCode == 200 {
-			if string(resp_body) != "Good" {
-				if string(resp_body) == "Expired" {
-					if !silent {
-						fmt.Println("License is Expired.")
-					}
-					os.Exit(0)
-				} else {
-					if !silent {
-						fmt.Println("Connot verify license, Please contact your seller.")
-					}
-					os.Exit(0)
+		os.Exit(0)
+	}
+	defer resp.Body.Close()
+	resp_body, _ := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode == 200 {
+		if string(resp_body) != "Good" {
+			if string(resp_body) == "Expired" {
+				if !silent {
+					fmt.Println("License is Expired.")
 				}
-			}
-		}
-	} else {
-		client := &http.Client{}
-		data := url.Values{}
-		data.Set("license", string(li))
-		u, _ := url.ParseRequestURI(api + "check")
-		urlStr := fmt.Sprintf("%v", u)
-		r, _ := http.NewRequest("POST", urlStr, bytes.NewBufferString(data.Encode()))
-		r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-		resp, err := client.Do(r)
-		if err != nil {
-			if !silent {
-				fmt.Println("Unable to connect to license server.")
-			}
-			os.Exit(0)
-		}
-		defer resp.Body.Close()
-		resp_body, _ := ioutil.ReadAll(resp.Body)
-		if resp.StatusCode == 200 {
-			if string(resp_body) != "Good" {
-				if string(resp_body) == "Expired" {
-					if !silent {
-						fmt.Println("License is Expired.")
-					}
-					os.Exit(0)
-				} else {
-					if !silent {
-						fmt.Println("Connot verify license, Please contact your seller.")
-					}
-					os.Exit(0)
+				os.Exit(0)
+			} else {
+				if !silent {
+					fmt.Println("Connot verify license, Please contact your seller.")
 				}
+				os.Exit(0)
 			}
 		}
 	}
+}
+
+func CheckLicense(api string, ssl, silent bool) (bool, error) {
+	if !CheckFileExist("license.dat") {
+
+		return false, errors.New("license.dat not found")
+	}
+
+	li, err := ioutil.ReadFile("license.dat") //string(li)
+	if err != nil {
+		return false, err
+	}
+
+	client := &http.Client{}
+	data := url.Values{}
+
+	data.Set("license", string(li))
+	u, _ := url.ParseRequestURI(api + "check")
+	urlStr := fmt.Sprintf("%v", u)
+	r, _ := http.NewRequest("POST", urlStr, bytes.NewBufferString(data.Encode()))
+	r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := client.Do(r)
+	if err != nil {
+		return false, errors.New("unable to connect to license server")
+	}
+
+	defer resp.Body.Close()
+	resp_body, _ := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode == 200 {
+		if string(resp_body) != "Good" {
+			if string(resp_body) == "Expired" {
+				return false, errors.New("license is Expired")
+			} else {
+				return false, errors.New("cannot verify license, Please contact your seller")
+			}
+		}
+	}
+
+	return true, nil
 }

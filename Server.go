@@ -14,7 +14,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 
-	"Go-Simple-Licensing-System/SimpleLicensing"
+	Licensing "Go-Simple-Licensing-System/SimpleLicensing"
 
 	"github.com/gorilla/mux"
 	"github.com/pelletier/go-toml"
@@ -162,7 +162,14 @@ func checkHandler(response http.ResponseWriter, request *http.Request) {
 	if err == sql.ErrNoRows { //No License for Key found
 		fmt.Fprintf(response, "Bad.")
 	} else { //Check Experation date
+
+		// check IP address
 		ip := strings.Split(request.RemoteAddr, ":")[0]
+		if !checkIP(decrypted, ip) {
+			fmt.Println("Bad IP.")
+			return
+		}
+
 		_, err := db.Exec("UPDATE licenses SET ip='" + ip + "' WHERE license='" + decrypted + "'")
 		if err != nil {
 			fmt.Println(err)
@@ -178,6 +185,21 @@ func checkHandler(response http.ResponseWriter, request *http.Request) {
 			fmt.Fprintf(response, "Expired")
 		}
 	}
+}
+
+func checkIP(license, ip string) bool {
+	var tmpip string
+	err := db.QueryRow("SELECT ip FROM licenses WHERE license='" + license + "'").Scan(&tmpip)
+	if err == sql.ErrNoRows { //No License for Key found
+		return false
+	}
+
+	if tmpip != "" && tmpip != ip {
+		return false
+	}
+
+	return true
+
 }
 
 func API() {
