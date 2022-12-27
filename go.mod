@@ -1,4 +1,4 @@
-module Go-Simple-Licensing-System
+module github.com/ideatocode/go-simple-licensing
 
 go 1.17
 
