@@ -7,7 +7,7 @@ This is something i put together fast, but it works. Feel free to use it as you 
 
 # How it Works
 
-1. Server creates a table for license email, license, experation date, and ip
+1. Server creates a table for license email, license, expiration date, and ip
 2. Server generates a license key (XXXX-XXXX-XXXX)
 3. Server encrypts it using your Servers key (Generated on setup) and server gives you it
 4. You give client to buyer/user with license.dat file that contains the encrypted license

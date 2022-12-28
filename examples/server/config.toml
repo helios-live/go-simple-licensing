@@ -1,0 +1,11 @@
+[server]
+port = "7676"
+ssl = true
+key = "6FBBD7P95OE8UT5Q"
+forwarding_from = ""
+
+[database]
+host = "localhost"
+db = "licensing"
+username = "root"
+password = ""
