@@ -72,14 +72,16 @@ func CheckLicense(api string, insecureSSL bool) (*http.Response, error) {
 	}
 
 	defer resp.Body.Close()
-	resp_body, _ := ioutil.ReadAll(resp.Body)
+	respBody, _ := ioutil.ReadAll(resp.Body)
+
+	// reset the read state
+	resp.Body = ioutil.NopCloser(bytes.NewBuffer(respBody))
 	if resp.StatusCode == 200 {
-		if string(resp_body) != "Good" {
-			if string(resp_body) == "Expired" {
+		if string(respBody) != "Good" {
+			if string(respBody) == "Expired" {
 				return nil, errors.New("license is Expired")
-			} else {
-				return nil, errors.New("cannot verify license, Please contact your seller")
 			}
+			return nil, errors.New("cannot verify license, Please contact your seller")
 		}
 	} else {
 		return resp, errors.New("Request failed")
